@@ -60,7 +60,7 @@ def show():
 frame2 = tk.Frame(window, pady=10)
 frame2.pack()
 
-
+#a
 
 tk.Button(frame2, text = "Pievienot izdevumu", command=add, bg="#4CAF50", fg="white", padx=10).grid(row=0, column=0, padx=5)
 tk.Button(frame2, text= "Apskatīt visus izdevumus", command=show, bg="#2196F3", fg="white", padx=10).grid(row=0, column=1, padx=5)
