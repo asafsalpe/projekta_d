@@ -8,29 +8,51 @@ c.execute('''CREATE TABLE IF NOT EXISTS expenses (id INTEGER PRIMARY KEY AUTOINC
 connect.commit()
 
 window = tk.Tk()
-window.geometry("400x400")
+window.geometry("560x530")
 window.title("Izdevumu pārvaldnieks")
 window.resizable(False, False)
+window.configure(bg="#dbe2ea")
 
-frame = tk.Frame(window, padx=10, pady=10)
+style = ttk.Style()
+style.theme_use("clam")
+style.configure("TButton", font=("Helvetica", 10), padding=6)
+style.map("TButton", background=[("active", "#e0e0e0")])
+
+frame = tk.Frame(window, bg="#dbe2ea", padx=20, pady=10)
 frame.pack()
 
-title = tk.Label(frame, text="Izdevumu pārvaldnieks", font=("Helvetica", 16, "bold"))
-title.grid(row=0, column=0, columnspan=2, pady=(0, 15))
+title = tk.Label(frame, text="Izdevumu pārvaldnieks", font=("Helvetica", 18, "bold"), bg="#dbe2ea", fg="#2e3f53")
+title.grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
-
-tk.Label(frame, text="Summa (€):", font=("Helvetica", 16, "bold")).grid(row=1, column=0, sticky="e")
-amountt = tk.Entry(frame, width=20)
+tk.Label(frame, text="Summa (€):", font=("Helvetica", 12), bg="#dbe2ea", fg="#2e3f53").grid(row=1, column=0, sticky="e")
+amountt = tk.Entry(frame, width=24, font=("Helvetica", 10) )
 amountt.grid(row=1, column=1, pady=5)
 
-tk.Label(frame, text="Kategorija:", font=("Helvetica", 16, "bold")).grid(row=2, column=0, sticky="e")
-categoryy = ttk.Combobox(frame, values=["Ēdiens", "Sabiedriskā dzīve", "Mājdzīvnieki", "Transports", "Kultūra", "Mājsaimniecība", "Apģērbs", "Skaistumkopšana", "Veselība", "Mācības", "Dāvana", "Cits"], width = 20)
-categoryy.grid(row=2, column=1, pady=5)
+tk.Label(frame, text="(izmanto punktu, nevis komatu: piem. 5.50)", font=("Helvetica", 8), bg="#dbe2ea", fg="gray").grid(row=2, column=1, sticky="w")
 
-frame3 = tk.Frame(window, padx=10, pady=10)
+tk.Label(frame, text="Kategorija:", font=("Helvetica", 12), bg="#dbe2ea", fg="#2e3f53").grid(row=3, column=0, sticky="e")
+categoryy = ttk.Combobox(frame, values=[
+    "Ēdiens", "Sabiedriskā dzīve", "Mājdzīvnieki", "Transports",
+    "Kultūra", "Mājsaimniecība", "Apģērbs", "Skaistumkopšana",
+    "Veselība", "Mācības", "Dāvana", "Cits"
+], width=22)
+categoryy.grid(row=3, column=1, pady=5)
+
+frame2 = tk.Frame(window, pady=10, bg="#dbe2ea")
+frame2.pack()
+
+button_width = 20
+
+def style_button(widget, bg, fg):
+    widget.configure(bg=bg, fg=fg, activebackground="#d0d0d0", relief="flat", bd=1, font=("Helvetica", 10, "bold"))
+
+status_label = tk.Label(frame2, text="", font=("Helvetica", 10), fg="green")
+status_label.grid(row=1, column=0, columnspan=2, pady=5)
+
+frame3 = tk.Frame(window, padx=10, pady=10, bg="#dbe2ea")
 frame3.pack()
 
-output = tk.Text(frame3, height=12, width=45, bg="#f9f9f9", borderwidth=1, relief="solid")
+output = tk.Text(frame3, height=12, width=60, bg="#ffffff", borderwidth=1, relief="groove", font=("Courier", 10))
 output.pack()
 
 def add():
@@ -41,31 +63,58 @@ def add():
             raise ValueError
         with connect:
             connect.execute("INSERT INTO expenses (amount, category) VALUES (?, ?)", (amount, category))
-        messagebox.showinfo("Izdevums veiksmīgi pievienots!")
+        status_label.config(text="Izdevums veiksmīgi pievienots!", fg="green")
         amountt.delete(0, tk.END)
-        categoryy.delete(0,tk.END)
-        show()
+        categoryy.set("")
     except ValueError:
-        messagebox.showerror("Nepareiza ievade! Lūdzu ievadiet pareizu summu un kategoriju")
+        status_label.config(text="Nepareiza ievade! Izmanto punktu kā decimālzīmi un izvēlies kategoriju!", fg="red")
 
 def show():
     output.delete(1.0, tk.END)
-    rows = connect.execute("SELECT amount, category FROM expenses").fetchall()
+    rows = connect.execute("SELECT id, amount, category FROM expenses").fetchall()
     total = 0
     for row in rows:
-        output.insert(tk.END, f"{row[0]:.2f} € - {row[1]}\n")
-        total += row[0]
-    output.insert(tk.END, f"\nKopā: {total:.2f} €")
+        output.insert(tk.END, f"ID {row[0]:<3} | {row[1]:>6.2f} € | {row[2]}\n")
+        total += row[1]
+    output.insert(tk.END, f"\n{'-'*40}\nKopā: {total:.2f} €")
 
-frame2 = tk.Frame(window, pady=10)
-frame2.pack()
+def delete_last():
+    with connect:
+        last = connect.execute("SELECT id FROM expenses ORDER BY id DESC LIMIT 1").fetchone()
+        if last:
+            connect.execute("DELETE FROM expenses WHERE id=?", (last[0],))
+            status_label.config(text="Pēdējais izdevums izdzēsts!", fg="blue")
+            show()
+        else:
+            status_label.config(text="Nav ko dzēst!", fg="orange")
+        
+def delete_all():
+    confirm = messagebox.askyesno("Apstiprināt", "Vai tiešām vēlies dzēst visus izdevumus?")
+    if confirm:
+        with connect:
+            connect.execute("DELETE FROM expenses")
+        status_label.config(text="Visi izdevumi ir izdzēsti.", fg="darkred")
+        show()
 
-#a
+btn_add = tk.Button(frame2, text="Pievienot izdevumu", width = button_width, command=add)
+style_button(btn_add, "#4CAF50", "white")
+btn_add.grid(row=0, column=0, padx=6, pady=5)
 
-tk.Button(frame2, text = "Pievienot izdevumu", command=add, bg="#4CAF50", fg="white", padx=10).grid(row=0, column=0, padx=5)
-tk.Button(frame2, text= "Apskatīt visus izdevumus", command=show, bg="#2196F3", fg="white", padx=10).grid(row=0, column=1, padx=5)
+btn_show = tk.Button(frame2, text="Apskatīt visus izdevumus", width = button_width, command=show)
+style_button(btn_show, "#2196F3", "white")
+btn_show.grid(row=0, column=1, padx=6, pady=5)
 
+btn_del = tk.Button(frame2, text="Dzēst pēdējo ierakstu", width = button_width, command=delete_last)
+style_button(btn_del, "#f44336", "white")
+btn_del.grid(row=0, column=2, padx=6, pady=5)
 
+btn_del_all = tk.Button(frame2, text="Dzēst visus", width=button_width, command=delete_all)
+style_button(btn_del_all, "#9E9E9E", "white")
+btn_del_all.grid(row=1, column=1, padx=6, pady=5)
 
+status_frame = tk.Frame(window, bg="#dbe2ea")
+status_frame.pack()
+status_label = tk.Label(status_frame, text="", font=("Helvetica", 10), bg="#dbe2ea", fg="green")
+status_label.pack(pady=5)
 
 window.mainloop()
